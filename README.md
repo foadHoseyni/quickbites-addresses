@@ -1,4 +1,4 @@
-# QuickBites – Delivery Addresses (study project)
+Delivery Addresses (study project)
 
 A complete, runnable version of the **delivery addresses** feature from the
 take-home (Go question 1), it has following layers: **controller → service → repository → MongoDB**.

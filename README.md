@@ -3,8 +3,20 @@
 A complete, runnable version of the **delivery addresses** feature from the
 take-home (Go question 1), it has following layers: **controller → service → repository → MongoDB**.
 
-This is a task for interview. The real project has more features
-(auth with JWT, cart, checkout, promo codes).
+## The task
+
+The task was to build the endpoints that let a user **set their delivery
+addresses** and **set their default address**:
+
+- **Setting an address:** a user can add a new delivery address, edit an
+  existing one, list their addresses and delete one they no longer use.
+- **Setting the default address:** a user can mark one of their addresses as
+  the default. A user with addresses always has exactly one default: the first
+  address they add becomes the default automatically, choosing a new default
+  removes the flag from the old one, and deleting the default promotes another
+  address.
+
+A user can only ever see or change their own addresses.
 
 ## Layout
 

@@ -1,4 +1,4 @@
-# Delivery Addresses (study project)
+# Delivery Addresses (Go question 1)
 
 A complete, runnable version of the **delivery addresses** feature from the
 take-home (Go question 1), it has following layers: **controller → service → repository → MongoDB**.

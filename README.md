@@ -89,39 +89,36 @@ curl -s -X DELETE localhost:8080/api/addresses/<id>         -H "Authorization: B
 
 Another user's address (or a malformed id) always returns **404**, never 403.
 
-## Design note: concurrent "set default" requests
+## Caveat: concurrent "set default" requests
 
-### The problem
+Setting the default is two separate writes: unset `is_default` on all of the
+user's addresses, then set it on the chosen one. These writes are not atomic,
+so if the same user sends two "set default" requests at exactly the same
+moment, they can interleave and leave the user with **two defaults**, or with
+**none** if a request fails between its two writes. Deleting the default
+address has the same two-step shape.
 
-Setting a default address is two separate writes:
+This is extremely rare, since it needs one person to change their default from
+two places at once, and the next "set default" call fixes it, so the service
+keeps the simple approach. If it needs to be prevented, there are three
+options, from simplest to strongest:
 
-1. unset `is_default` on all of the user's addresses, then
-2. set `is_default` on the chosen address.
+1. **Partial unique index** on `user_id` for documents where
+   `is_default: true`. MongoDB then rejects a second default for the same user,
+   and the losing request returns a conflict or retries.
 
-These two writes are not atomic. If the same user sends two "set default"
-requests for different addresses at the same moment, the writes can
-interleave:
+   ```go
+   coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+       Keys: bson.D{{Key: "user_id", Value: 1}},
+       Options: options.Index().
+           SetUnique(true).
+           SetPartialFilterExpression(bson.M{"is_default": true}),
+   })
+   ```
 
-```
-request A: unset all          request B: unset all
-request A: set address 1      request B: set address 2
-```
-Because setting a default address involves two separate writes (**unset all defaults, then set one**), concurrent requests or failures can leave a user with **two default addresses or none**.
+2. **MongoDB transaction** around both writes, so they succeed or fail
+   together. This also prevents the "no default" case, but needs a replica set.
 
-### Possible solutions
-
-1. **MongoDB transaction:** Ensures both writes succeed or fail together, but requires a replica set and adds complexity.
-2. **Partial unique index:** Prevents multiple default addresses for the same user at the database level. This is the recommended first improvement if the issue becomes significant.
-3. **Store the default on the user document:** Keep a single `default_address_id` field, making the change a single atomic update.
-4. **Optimistic concurrency:** Use a version number to detect conflicting updates and retry.
-5. **Serialize per user:** Use a lock to prevent simultaneous changes, but this adds infrastructure and lock-handling complexity.
-
-For example, a partial unique index can be created like this:
-
-```go
-coll.Indexes().CreateOne(ctx, mongo.IndexModel{
-    Keys: bson.D{{Key: "user_id", Value: 1}},
-    Options: options.Index().
-        SetUnique(true).
-        SetPartialFilterExpression(bson.M{"is_default": true}),
-})
+3. **Store `default_address_id` on the user document**, so changing the
+   default is a single atomic update and two defaults become impossible by
+   design.

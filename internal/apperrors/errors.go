@@ -19,8 +19,16 @@ func NewUnauthorized(msg string) *AppError {
 	return &AppError{Status: http.StatusUnauthorized, Message: msg}
 }
 
+func NewForbidden(msg string) *AppError {
+	return &AppError{Status: http.StatusForbidden, Message: msg}
+}
+
 func NewNotFound(msg string) *AppError {
 	return &AppError{Status: http.StatusNotFound, Message: msg}
+}
+
+func NewConflict(msg string) *AppError {
+	return &AppError{Status: http.StatusConflict, Message: msg}
 }
 
 func NewServerError(msg string) *AppError {

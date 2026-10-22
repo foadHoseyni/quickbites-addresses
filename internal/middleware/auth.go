@@ -45,6 +45,43 @@ func RequireAuth() gin.HandlerFunc {
 	}
 }
 
+// ParseAdminIDs turns a comma-separated list of ObjectID hex strings
+// (as supplied via the ADMIN_USER_IDS env var) into a lookup set.
+// Blank entries and malformed IDs are skipped silently so a typo in the
+// env var cannot lock everyone out at startup.
+func ParseAdminIDs(raw string) map[primitive.ObjectID]bool {
+	admins := map[primitive.ObjectID]bool{}
+	for _, part := range strings.Split(raw, ",") {
+		token := strings.TrimSpace(part)
+		if token == "" {
+			continue
+		}
+		id, err := primitive.ObjectIDFromHex(token)
+		if err != nil {
+			continue
+		}
+		admins[id] = true
+	}
+	return admins
+}
+
+// RequireAdmin gates a route behind the admin set built by ParseAdminIDs.
+// Must run after RequireAuth so the current user is in context.
+func RequireAdmin(admins map[primitive.ObjectID]bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user, ok := GetCurrentUser(c)
+		if !ok {
+			AbortWithAppError(c, apperrors.NewUnauthorized("Authentication required"))
+			return
+		}
+		if !admins[user.ID] {
+			AbortWithAppError(c, apperrors.NewForbidden("Admin access required"))
+			return
+		}
+		c.Next()
+	}
+}
+
 // GetCurrentUser returns the authenticated user set by RequireAuth.
 func GetCurrentUser(c *gin.Context) (*CurrentUser, bool) {
 	v, ok := c.Get(currentUserKey)
